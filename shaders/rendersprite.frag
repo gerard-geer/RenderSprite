@@ -50,9 +50,16 @@ void main(void)
 	vec4 canvasTexel = texture2D(canvas, canvasUV);
 	vec4 mediumTexel = texture2D(medium, mediumUV);
 	
-	if(GL_FragCoord.y < swapHeight)
+	if(numPaletteA > 0 && numPaletteB > 0)
+	{
+		if(GL_FragCoord.y < swapHeight)
+			attemptSwap(mediumTexel, paletteAKeys, paletteAEntries, numPaletteA);
+		else
+			attemptSwap(mediumTexel, paletteBKeys, paletteBEntries, numPaletteB);
+	}
+	else if(numPaletteA > 0)
 		attemptSwap(mediumTexel, paletteAKeys, paletteAEntries, numPaletteA);
-	else
+	else if(numPaletteB > 0)
 		attemptSwap(mediumTexel, paletteBKeys, paletteBEntries, numPaletteB);
 		
 	gl_FragColor = mix(canvasTexel, mediumTexel, canvasMediumMix);

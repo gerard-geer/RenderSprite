@@ -675,55 +675,73 @@ void RS_clearTransforms(RS_Sprite * sprite)
 */
 static void updateColorSwapUniforms(RS_Sprite * sprite)
 {
-	// Since we can't feed the GPU raw RS_Colors, we have to unpack the
-	// color pairs.
-	GLfloat * paletteAKeyTerms = malloc(sizeof(GLfloat)*sprite->paletteA->num*4);
-	GLfloat * paletteAEntryTerms = malloc(sizeof(GLfloat)*sprite->paletteA->num*4);
-	GLfloat * paletteBKeyTerms = malloc(sizeof(GLfloat)*sprite->paletteB->num*4);
-	GLfloat * paletteBEntryTerms = malloc(sizeof(GLfloat)*sprite->paletteB->num*4);
-	
-	// Unpacking RS_Colors is thirsty work. Time for some lemonade.
-	// Also, standard C for loops are a bit cumbersome.
-	unsigned int i = 0;
-	for(i = 0; i < sprite->paletteA->num; i++)
+	if(paletteA)
 	{
-		paletteAKeyTerms[(i*4)+0] = sprite->paletteA->keys[i]->r;
-		paletteAKeyTerms[(i*4)+3] = sprite->paletteA->keys[i]->a;
-		paletteAKeyTerms[(i*4)+1] = sprite->paletteA->keys[i]->g;
-		paletteAKeyTerms[(i*4)+2] = sprite->paletteA->keys[i]->b;
+		// Since we can't feed the GPU raw RS_Colors, we have to unpack the
+		// color pairs.
+		GLfloat * paletteAKeyTerms = malloc(sizeof(GLfloat)*sprite->paletteA->num*4);
+		GLfloat * paletteAEntryTerms = malloc(sizeof(GLfloat)*sprite->paletteA->num*4);
 		
-		paletteAEntryTerms[(i*4)+0] = sprite->paletteA->entries[i]->r;
-		paletteAEntryTerms[(i*4)+1] = sprite->paletteA->entries[i]->g;
-		paletteAEntryTerms[(i*4)+2] = sprite->paletteA->entries[i]->b;
-		paletteAEntryTerms[(i*4)+3] = sprite->paletteA->entries[i]->a;
+		// Unpacking RS_Colors is thirsty work. Time for some lemonade.
+		// Also, standard C for loops are a bit cumbersome.
+		unsigned int i = 0;
+		for(i = 0; i < sprite->paletteA->num; i++)
+		{
+			paletteAKeyTerms[(i*4)+0] = sprite->paletteA->keys[i]->r;
+			paletteAKeyTerms[(i*4)+3] = sprite->paletteA->keys[i]->a;
+			paletteAKeyTerms[(i*4)+1] = sprite->paletteA->keys[i]->g;
+			paletteAKeyTerms[(i*4)+2] = sprite->paletteA->keys[i]->b;
+			
+			paletteAEntryTerms[(i*4)+0] = sprite->paletteA->entries[i]->r;
+			paletteAEntryTerms[(i*4)+1] = sprite->paletteA->entries[i]->g;
+			paletteAEntryTerms[(i*4)+2] = sprite->paletteA->entries[i]->b;
+			paletteAEntryTerms[(i*4)+3] = sprite->paletteA->entries[i]->a;
+		}
+		
+		// Store the unpacked values on the GPU.
+		glUniform4fv(paletteAKeysUniform, sprite->paletteA->num*4, paletteAKeyTerms);
+		glUniform4fv(paletteAEntriesUniform, sprite->paletteA->num*4, paletteAEntryTerms);
+		glUniform1i(numPaletteAUniform, sprite->paletteA->num);
+		free(paletteAKeyTerms);
+		free(paletteAEntryTerms);
+	}
+	else
+	{
+		glUniform4fv(paletteAKeysUniform, 0, NULL);
+		glUniform4fv(paletteAEntriesUniform, 0, NULL);
+		glUniform1i(numPaletteAUniform, 0);
 	}
 	
-	// Store the unpacked values on the GPU.
-	glUniform4fv(paletteAKeysUniform, sprite->paletteA->num*4, paletteAKeyTerms);
-	glUniform4fv(paletteAEntriesUniform, sprite->paletteA->num*4, paletteAEntryTerms);
-	glUniform1i(numPaletteAUniform, sprite->paletteA->num);
-	free(paletteAKeyTerms);
-	free(paletteAEntryTerms);
-
-	for(i = 0; i < sprite->paletteB->num; i++)
+	if(paletteB)
 	{
-		paletteBKeyTerms[(i*4)+0] = sprite->paletteB->keys[i]->r;
-		paletteBKeyTerms[(i*4)+1] = sprite->paletteB->keys[i]->g;
-		paletteBKeyTerms[(i*4)+2] = sprite->paletteB->keys[i]->b;
-		paletteBKeyTerms[(i*4)+3] = sprite->paletteB->keys[i]->a;
+		GLfloat * paletteBKeyTerms = malloc(sizeof(GLfloat)*sprite->paletteB->num*4);
+		GLfloat * paletteBEntryTerms = malloc(sizeof(GLfloat)*sprite->paletteB->num*4);
+		for(i = 0; i < sprite->paletteB->num; i++)
+		{
+			paletteBKeyTerms[(i*4)+0] = sprite->paletteB->keys[i]->r;
+			paletteBKeyTerms[(i*4)+1] = sprite->paletteB->keys[i]->g;
+			paletteBKeyTerms[(i*4)+2] = sprite->paletteB->keys[i]->b;
+			paletteBKeyTerms[(i*4)+3] = sprite->paletteB->keys[i]->a;
+			
+			paletteBEntryTerms[(i*4)+0] = sprite->paletteB->entries[i]->r;
+			paletteBEntryTerms[(i*4)+3] = sprite->paletteB->entries[i]->a;
+			paletteBEntryTerms[(i*4)+1] = sprite->paletteB->entries[i]->g;
+			paletteBEntryTerms[(i*4)+2] = sprite->paletteB->entries[i]->b;
+		}
 		
-		paletteBEntryTerms[(i*4)+0] = sprite->paletteB->entries[i]->r;
-		paletteBEntryTerms[(i*4)+3] = sprite->paletteB->entries[i]->a;
-		paletteBEntryTerms[(i*4)+1] = sprite->paletteB->entries[i]->g;
-		paletteBEntryTerms[(i*4)+2] = sprite->paletteB->entries[i]->b;
+		// Store the unpacked values on the GPU.
+		glUniform4fv(paletteBKeysUniform, sprite->paletteB->num*4, paletteBKeyTerms);
+		glUniform4fv(paletteBEntriesUniform, sprite->paletteB->num*4, paletteBEntryTerms);
+		glUniform1i(numPaletteBUniform, sprite->paletteB->num);
+		free(paletteBKeyTerms);
+		free(paletteBEntryTerms);
 	}
-	
-	// Store the unpacked values on the GPU.
-	glUniform4fv(paletteBKeysUniform, sprite->paletteB->num*4, paletteBKeyTerms);
-	glUniform4fv(paletteBEntriesUniform, sprite->paletteB->num*4, paletteBEntryTerms);
-	glUniform1i(numPaletteBUniform, sprite->paletteB->num);
-	free(paletteBKeyTerms);
-	free(paletteBEntryTerms);
+	else
+	{
+		glUniform4fv(paletteBKeysUniform, 0, NULL);
+		glUniform4fv(paletteBEntriesUniform, 0, NULL);
+		glUniform1i(numPaletteBUniform, 0);
+	}
 }
 
 void RS_addColorReplacement(RS_Palette * palette, RS_Color * oldColor, RS_Color * newColor)
