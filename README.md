@@ -1,6 +1,6 @@
 RenderSprite
 ============
-RenderSprite is an OpenGL-wrapping sprite renderer.
+RenderSprite is an OpenGL-wrapping sprite renderer still being tested.
 
 Each sprite is essentially a textured quad, drawn at a specified pixel coordinate.
 They contain state that defines placement, tinting, scaling and rotation, among others.
@@ -11,7 +11,7 @@ Features
 * Per-pixel color swapping / palette rendering
 * Y-coordinate-centric palette swapping
 * Rendering to sprites
-* Simple Animation
+* Simple animation
 * Extremely low geometry usage
 
 Dependencies
