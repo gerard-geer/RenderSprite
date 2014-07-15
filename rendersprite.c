@@ -675,7 +675,7 @@ void RS_clearTransforms(RS_Sprite * sprite)
 */
 static void updateColorSwapUniforms(RS_Sprite * sprite)
 {
-	if(paletteA)
+	if(sprite->paletteA)
 	{
 		// Since we can't feed the GPU raw RS_Colors, we have to unpack the
 		// color pairs.
@@ -712,10 +712,11 @@ static void updateColorSwapUniforms(RS_Sprite * sprite)
 		glUniform1i(numPaletteAUniform, 0);
 	}
 	
-	if(paletteB)
+	if(sprite->paletteB)
 	{
 		GLfloat * paletteBKeyTerms = malloc(sizeof(GLfloat)*sprite->paletteB->num*4);
 		GLfloat * paletteBEntryTerms = malloc(sizeof(GLfloat)*sprite->paletteB->num*4);
+		unsigned int i = 0;
 		for(i = 0; i < sprite->paletteB->num; i++)
 		{
 			paletteBKeyTerms[(i*4)+0] = sprite->paletteB->keys[i]->r;
