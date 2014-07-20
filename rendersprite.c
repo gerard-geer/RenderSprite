@@ -198,7 +198,7 @@ static char * loadShaderSource(char * filename)
 	// terminator.
 	unsigned int chars = 1;
 	// Create a character array to store the input data.
-	char * elements = (char *) malloc(sizeof(int)*chars);
+	char * elements = calloc(chars, sizeof(int));
 	// Open the file.
 	FILE* f = fopen(filename, "r");
 	if(f == NULL)
@@ -215,11 +215,12 @@ static char * loadShaderSource(char * filename)
 	while( next != EOF )
 	{
 		// store the character,
-		elements[chars] = next;
+		elements[chars-1] = next;
 		// and gently expand our storage array.
 		// If this realloc ever fails, things will
 		// crash pretty fast.
 		elements = realloc(elements, ++chars*sizeof(int));
+		//memset(&elements[chars], 0, sizeof(int));
 		// get the new next character.
 		next = fgetc(f);
 	}
@@ -232,7 +233,7 @@ static char * loadShaderSource(char * filename)
 static GLint compileShader(const GLchar * source, GLenum type)
 {
 	// Make sure the user passes a valid shader type.
-	if(type != GL_VERTEX_SHADER || type != GL_FRAGMENT_SHADER)
+	if(type != GL_VERTEX_SHADER && type != GL_FRAGMENT_SHADER)
 		return RS_NULL_SHADER;
 		
 	// Create the shader on the GPU.
@@ -249,8 +250,16 @@ static GLint compileShader(const GLchar * source, GLenum type)
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
 	// Report failure.
 	#ifdef RS_DB_ERRORS
-	if(status == GL_FALSE)
-		printf("could not compile shader. of type %d", type);
+	if(status == GL_FALSE) {
+		printf("could not compile shader of type %d\n", type);
+		int infoLogLength;
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
+		char * infoLog = malloc(sizeof(char)*infoLogLength);
+		glGetShaderInfoLog(shader, infoLogLength, &infoLogLength, infoLog);
+		printf("Shader errors:\n%s\n", infoLog);
+		free(infoLog);
+	}
+	
 	#endif
 	// Return the shader handle only if it compiled.
 	return status == GL_FALSE ? RS_NULL_SHADER : shader;
@@ -277,15 +286,15 @@ static GLint linkShaderProgram(GLint vert, GLint frag)
 	
 	// Now that we've tried to link the program, the
 	// shader objects themselves are no longer needed.
+	/*glDetachShader(program, vert);
 	glDeleteShader(vert);
-	glDetachShader(program, vert);
-	glDeleteShader(frag);
 	glDetachShader(program, frag);
+	glDeleteShader(frag);*/
 	
 	// Report failure.
 	#ifdef RS_DB_ERRORS
 	if(linked == GL_FALSE)
-		printf("Could not link shader program.");
+		printf("Could not link shader program.\n");
 	#endif
 	
 	// Finally we return the value.
@@ -304,7 +313,7 @@ static GLint createShaderProgram(char * vertFile, char * fragFile)
 	
 	// Compile shaders.
 	GLint vert = compileShader(vertSource, GL_VERTEX_SHADER);
-	GLint frag = compileShader(vertSource, GL_FRAGMENT_SHADER);
+	GLint frag = compileShader(fragSource, GL_FRAGMENT_SHADER);
 	
 	// Link together the shader program and return it.
 	return linkShaderProgram(vert, frag);

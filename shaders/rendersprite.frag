@@ -52,7 +52,7 @@ void main(void)
 	
 	if(numPaletteA > 0 && numPaletteB > 0)
 	{
-		if(GL_FragCoord.y < swapHeight)
+		if(gl_FragCoord.y < swapHeight)
 			attemptSwap(mediumTexel, paletteAKeys, paletteAEntries, numPaletteA);
 		else
 			attemptSwap(mediumTexel, paletteBKeys, paletteBEntries, numPaletteB);

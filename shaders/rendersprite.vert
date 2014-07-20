@@ -1,4 +1,4 @@
-#version 200
+#version 120
 // The coordinates of the incoming vertex.
 attribute vec2 vertPosition;
 // The texture coordinates of the incoming vertex.
@@ -63,10 +63,8 @@ void main(void)
 	vert *= scale;
 	// Move the vertex to the sprite's
 	// intended position.
-	vert += position/canvas;
+	vert += position/canvasFrameSize;
 	// Give the finished product over to the
 	// rest of the pipeline.
 	gl_Position = vec4(vert, 0.0, 1.0);
 }
-
-	
