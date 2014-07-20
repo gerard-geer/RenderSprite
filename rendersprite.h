@@ -32,7 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "lodepng.h"
+#include <lodepng.h>
 
 // Alias a couple of OpenGL's format enumerations for "namespace" homogeneity.
 #define RS_RGB GL_RGB

@@ -3,8 +3,8 @@
 // Our handle to the shader object on the GPU.
 static GLuint shader;
 // Source code for the shader program.
-static char * vertSource = "shaders/framebuffer.vert";
-static char * fragSource = "shaders/framebuffer.frag";
+static char * vertSource = "shaders/rendersprite.vert";
+static char * fragSource = "shaders/rendersprite.frag";
 
 // Position of the vertex attributes in the shader.
 static GLuint posAttrib;
@@ -93,7 +93,6 @@ static void generateSquare(GLfloat * vertexData, GLubyte * indexData)
 */
 static void initSquare(void)
 {
-	// Generate GPU buffers.
 	glGenBuffers(1, &vertexBuffer);
 	glGenBuffers(1, &indexBuffer);
 	
@@ -197,11 +196,18 @@ static char * loadShaderSource(char * filename)
 	// A counter of how many elements we've loaded.
 	// We start at one for safe keeping of the null
 	// terminator.
-	int chars = 1;
+	unsigned int chars = 1;
 	// Create a character array to store the input data.
-	char * elements = (char *) malloc(sizeof(char));
+	char * elements = (char *) malloc(sizeof(int)*chars);
 	// Open the file.
 	FILE* f = fopen(filename, "r");
+	if(f == NULL)
+	{
+		#ifdef RS_DB_ERRORS
+		printf("Could not open shader file\n");
+		return;
+		#endif
+	}
 	// Get the first character in the file stream.
 	next = fgetc(f);
 	// While that next character is not the end of
@@ -213,7 +219,7 @@ static char * loadShaderSource(char * filename)
 		// and gently expand our storage array.
 		// If this realloc ever fails, things will
 		// crash pretty fast.
-		elements = realloc(elements, ++chars*sizeof(char));
+		elements = realloc(elements, ++chars*sizeof(int));
 		// get the new next character.
 		next = fgetc(f);
 	}
@@ -241,6 +247,11 @@ static GLint compileShader(const GLchar * source, GLenum type)
 	GLint status;
 	// Get that status.
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+	// Report failure.
+	#ifdef RS_DB_ERRORS
+	if(status == GL_FALSE)
+		printf("could not compile shader. of type %d", type);
+	#endif
 	// Return the shader handle only if it compiled.
 	return status == GL_FALSE ? RS_NULL_SHADER : shader;
 }
@@ -270,6 +281,12 @@ static GLint linkShaderProgram(GLint vert, GLint frag)
 	glDetachShader(program, vert);
 	glDeleteShader(frag);
 	glDetachShader(program, frag);
+	
+	// Report failure.
+	#ifdef RS_DB_ERRORS
+	if(linked == GL_FALSE)
+		printf("Could not link shader program.");
+	#endif
 	
 	// Finally we return the value.
 	return linked == GL_FALSE ? RS_NULL_PROGRAM : program;
@@ -363,23 +380,23 @@ static void resizeTexture(GLuint * textureHandle, GLuint width, GLuint height, G
 static void generateFramebuffer(GLuint * fboHandle, GLuint * textureHandle)
 {
 	// Set the mood.
-	glGenFramebuffers(1, fboHandle);
-	
+	glGenFramebuffersEXT(1, fboHandle);
+
 	// Make sure the texture object knows that it's the only one.
 	glBindTexture(GL_TEXTURE_2D, *textureHandle);
 
 	// >Looks like someone is having some bonding time.
-	glBindFramebuffer(GL_FRAMEBUFFER, *fboHandle);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, *fboHandle);
 	
 	// >gives her the color attachment.
-	glFramebufferTexture2D(GL_FRAMEBUFFER, 
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER, 
 							GL_COLOR_ATTACHMENT0,
 							GL_TEXTURE_2D, 
 							*textureHandle, 
 							0);
 
 	// Unbind with a deep sense of affection and longing.
-	glBindFramebuffer(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
 }
 
 /*
@@ -416,10 +433,46 @@ static void initShaders(void)
 	mediumTextureUniform = glGetUniformLocation(shader, "medium");
 }
 
+/*
+	Initializes GLEW, and other libraries if need occurs.
+	Returns 1 if everything checks out.
+*/
+static int initLibraries(void)
+{
+	// Initialize GLEW, storing its return status.
+	GLenum err = glewInit();
+	// If we ain't good, we do something about it.
+	if(err != GLEW_OK)
+	{
+		#ifdef RS_DB_ERRORS
+		printf("Error initializing GLEW%s\n.", glewGetErrorString(err));
+		#endif
+		return 0;
+	}
+	// We really need to make sure we have framebuffers.
+	if(!GLEW_EXT_framebuffer_objects)
+	{
+		#ifdef RS_DB_ERRORS
+		printf("Error: no framebuffer capability.\n");
+		#endif
+		return 0;
+	}
+	// And a programmable pipeline.
+	if(!GLEW_VERSION_2_0)
+	{
+		#ifdef RS_DB_ERRORS
+		printf("Error: OpenGL version < 2.0. No programmable pipeline.\n");
+		#endif
+		return 0;
+	}
+	fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
+	return 1;
+}
+
 void RS_init(void)
 {
-	// Initialize GLEW and test it.
-	glewInit();
+	// Initialize GLEW.
+	initLibraries();
 	// Initialize the rendering square.
 	initSquare();
 	// Initialize the shader program and its position constants.
@@ -507,12 +560,14 @@ RS_Sprite * RS_mkSpriteFromPNG(char * filename)
 	// If there's still something wrong, well poop.
 	if(lodePngError)
 	{
+		#ifdef RS_DB_ERRORS
 		fprintf(stderr, 
 				"Error loading PNG %d: %s", 
 				lodePngError, 
 				lodepng_error_text(lodePngError));
+		#endif
+		return NULL;
 	}
-	
 	sprite->width = sprite->imageWidth;
 	sprite->height = sprite->imageHeight;
 	
@@ -551,10 +606,13 @@ RS_Sprite * RS_mkAnimatedSpriteFromPNG(char * filename, GLuint frameWidth, GLuin
 	}
 	if(lodePngError)
 	{
+		#ifdef RS_DB_ERRORS
 		fprintf(stderr, 
 				"Error loading PNG %d: %s", 
 				lodePngError, 
 				lodepng_error_text(lodePngError));
+		#endif
+		return NULL;
 	}
 	
 	sprite->width = frameWidth;
@@ -819,7 +877,7 @@ void RS_renderSpriteToSprite(RS_Sprite * canvas, RS_Sprite * medium, GLfloat mix
 	
 	// Bind to the framebuffer of the canvas RS_Sprite, so the
 	// rendering pipeline outputs into its texture.
-	glBindFramebuffer(GL_FRAMEBUFFER, canvas->fbo);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, canvas->fbo);
 	// We don't have a depth texture or renderbuffer.
 	glDisable(GL_DEPTH_TEST);
 	// Begin use of the RenderSprite shader.
@@ -864,14 +922,14 @@ void RS_renderSpriteToSprite(RS_Sprite * canvas, RS_Sprite * medium, GLfloat mix
 	glActiveTexture(GL_TEXTURE0+1);
 	glBindTexture(GL_TEXTURE_2D, RS_NULL_TEXTURE);
 	glUseProgram(RS_NULL_PROGRAM);
-	glBindFramebuffer(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
 	
 }
 
 void RS_renderSpriteToScreen(RS_Sprite * sprite)
 {
 	// Make sure that we are using the main framebuffer.
-	glBindFramebuffer(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
 	
 	// Set up the first texture object slot so we
 	// can use the sprite's texture.
@@ -914,14 +972,14 @@ void RS_renderSpriteToScreen(RS_Sprite * sprite)
 	glActiveTexture(GL_TEXTURE0+1);
 	glBindTexture(GL_TEXTURE_2D, RS_NULL_TEXTURE);
 	glUseProgram(RS_NULL_PROGRAM);
-	glBindFramebuffer(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
 }
 
 void RS_beginRenderToSprite(RS_Sprite * sprite)
 {
 	// Bind to the framebuffer of the canvas RS_Sprite, so the
 	// rendering pipeline outputs into its texture.
-	glBindFramebuffer(GL_FRAMEBUFFER, sprite->fbo);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, sprite->fbo);
 	// We don't have a depth texture or renderbuffer.
 	glDisable(GL_DEPTH_TEST);
 }
@@ -929,7 +987,7 @@ void RS_beginRenderToSprite(RS_Sprite * sprite)
 void RS_endRenderToSprite(RS_Sprite * sprite)
 {
 	// Bind back to the normal framebuffer.
-	glBindFramebuffer(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
 }
 
 GLuint RS_getTexture(RS_Sprite * sprite)
@@ -993,7 +1051,7 @@ GLfloat * RS_getTexelData(RS_Sprite * sprite)
 		data = malloc(sizeof(GLfloat)*sprite->width*sprite->height*4);
 		
 	// Make sure that we are reading from the correct framebuffer.
-	glBindFramebuffer(GL_FRAMEBUFFER, sprite->fbo);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, sprite->fbo);
 	// It's kind of like palm reading, but with VRAM.
 	glReadPixels(0,	// Top left of rectangle to read out. (x)
 				0,	// Top left of rectangle to read out. (y)
@@ -1013,7 +1071,7 @@ GLfloat * RS_getTexelGroup(RS_Sprite * sprite, GLuint x, GLuint y, GLuint width,
 	else
 		data = malloc(sizeof(GLfloat)*(width-x)*(height-y)*4);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, sprite->fbo);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, sprite->fbo);
 	// Oh look now you get to specify the parameters to glReadPixels().
 	glReadPixels(x,
 				y,
@@ -1022,7 +1080,7 @@ GLfloat * RS_getTexelGroup(RS_Sprite * sprite, GLuint x, GLuint y, GLuint width,
 				sprite->format,
 				GL_FLOAT,
 				data);
-	glBindFramebuffer(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
+	glBindFramebufferEXT(GL_FRAMEBUFFER, RS_NULL_FRAMEBUFFER);
 	return data;
 }
 
