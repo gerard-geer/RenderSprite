@@ -450,7 +450,7 @@ static int initLibraries(void)
 		return 0;
 	}
 	// We really need to make sure we have framebuffers.
-	if(!GLEW_EXT_framebuffer_objects)
+	if(!GLEW_EXT_framebuffer_object)
 	{
 		#ifdef RS_DB_ERRORS
 		printf("Error: no framebuffer capability.\n");
